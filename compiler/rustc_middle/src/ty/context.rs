@@ -18,7 +18,7 @@ use crate::ty::query::{self, TyCtxtAt};
 use crate::ty::subst::{GenericArg, GenericArgKind, InternalSubsts, Subst, SubstsRef, UserSubsts};
 use crate::ty::TyKind::*;
 use crate::ty::{
-    self, AdtDef, AdtKind, Binder, BindingMode, BoundVar, CanonicalPolyFnSig,
+    self, codec::TyDecoder, AdtDef, AdtKind, Binder, BindingMode, BoundVar, CanonicalPolyFnSig,
     ClosureSizeProfileData, Const, ConstVid, DefIdTree, ExistentialPredicate, FloatTy, FloatVar,
     FloatVid, GenericParamDefKind, InferConst, InferTy, IntTy, IntVar, IntVid, List, ParamConst,
     ParamTy, PolyFnSig, Predicate, PredicateInner, PredicateKind, ProjectionTy, Region, RegionKind,
@@ -46,6 +46,7 @@ use rustc_index::vec::{Idx, IndexVec};
 use rustc_macros::HashStable;
 use rustc_middle::mir::FakeReadCause;
 use rustc_serialize::opaque::{FileEncodeResult, FileEncoder};
+use rustc_serialize::Decoder;
 use rustc_session::config::{BorrowckMode, CrateType, OutputFilenames};
 use rustc_session::lint::{Level, Lint};
 use rustc_session::Limit;
@@ -56,6 +57,7 @@ use rustc_span::symbol::{kw, sym, Ident, Symbol};
 use rustc_span::{Span, DUMMY_SP};
 use rustc_target::abi::{Layout, TargetDataLayout, VariantIdx};
 use rustc_target::spec::abi;
+use rustc_type_ir::Interner;
 
 use smallvec::SmallVec;
 use std::any::Any;
@@ -101,6 +103,19 @@ pub trait OnDiskCache<'tcx>: rustc_data_structures::sync::Sync {
     fn store_foreign_def_id_hash(&self, def_id: DefId, hash: DefPathHash);
 
     fn serialize(&self, tcx: TyCtxt<'tcx>, encoder: &mut FileEncoder) -> FileEncodeResult;
+}
+
+pub struct TyInterner<'tcx> {
+    tcx: TyCtxt<'tcx>,
+}
+
+impl<'tcx, D: Decoder + TyDecoder<'tcx>> Interner<D> for TyInterner<'tcx> {
+    type Predicate = Predicate<'tcx>;
+    type BinderPredicateKind = Binder<'tcx, PredicateKind<'tcx>>;
+
+    fn mk_predicate(self, binder: Binder<'tcx, PredicateKind<'tcx>>) -> Predicate<'tcx> {
+        self.tcx.mk_predicate(binder)
+    }
 }
 
 /// A type that is not publicly constructable. This prevents people from making [`TyKind::Error`]s
@@ -1068,6 +1083,10 @@ pub struct GlobalCtxt<'tcx> {
 }
 
 impl<'tcx> TyCtxt<'tcx> {
+    pub fn interner(self) -> TyInterner<'tcx> {
+        TyInterner { tcx: self }
+    }
+
     pub fn typeck_opt_const_arg(
         self,
         def: ty::WithOptConstParam<LocalDefId>,

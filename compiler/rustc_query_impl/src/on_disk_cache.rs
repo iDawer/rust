@@ -9,7 +9,7 @@ use rustc_middle::dep_graph::{DepNode, DepNodeIndex, SerializedDepNodeIndex};
 use rustc_middle::mir::interpret::{AllocDecodingSession, AllocDecodingState};
 use rustc_middle::mir::{self, interpret};
 use rustc_middle::ty::codec::{RefDecodable, TyDecoder, TyEncoder};
-use rustc_middle::ty::{self, Ty, TyCtxt};
+use rustc_middle::ty::{self, Ty, TyCtxt, TyInterner};
 use rustc_query_system::dep_graph::DepContext;
 use rustc_query_system::query::{QueryContext, QuerySideEffects};
 use rustc_serialize::{
@@ -694,6 +694,11 @@ impl<'a, 'tcx> TyDecoder<'tcx> for CacheDecoder<'a, 'tcx> {
     #[inline]
     fn tcx(&self) -> TyCtxt<'tcx> {
         self.tcx
+    }
+
+    #[inline]
+    fn interner(&self) -> TyInterner<'tcx> {
+        self.tcx.interner()
     }
 
     #[inline]
