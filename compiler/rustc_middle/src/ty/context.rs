@@ -20,7 +20,7 @@ use crate::ty::TyKind::*;
 use crate::ty::{
     self, codec::TyDecoder, AdtDef, AdtKind, Binder, BindingMode, BoundVar, CanonicalPolyFnSig,
     ClosureSizeProfileData, Const, ConstVid, DefIdTree, ExistentialPredicate, FloatTy, FloatVar,
-    FloatVid, GenericParamDefKind, InferConst, InferTy, IntTy, IntVar, IntVid, List, ParamConst,
+    FloatVid, GenericParamDefKind, InferConst, InferTy, Instance, IntTy, IntVar, IntVid, List, ParamConst,
     ParamTy, PolyFnSig, Predicate, PredicateInner, PredicateKind, ProjectionTy, Region, RegionKind,
     ReprOptions, TraitObjectVisitor, Ty, TyKind, TyS, TyVar, TyVid, TypeAndMut, UintTy,
 };
@@ -118,6 +118,24 @@ impl<'tcx, D: Decoder + TyDecoder<'tcx>> Interner<D> for TyInterner<'tcx> {
 
     type Ty = Ty<'tcx>;
     type TyKind = TyKind<'tcx>;
+    type Allocation = Allocation;
+    type AllocationId = AllocId;
+
+    type InternedAllocation = &'tcx Allocation;
+    type Instance = Instance<'tcx>;
+
+    type DefId = DefId;
+
+    type CanonicalVarInfo = CanonicalVarInfo<'tcx>;
+    type ListCanonicalVarInfo = CanonicalVarInfos<'tcx>;
+
+    type RegionKind = RegionKind;
+    type Region = Region<'tcx>;
+
+    type Const = Const<'tcx>;
+    type InternedConst = &'tcx Const<'tcx>;
+
+    type DefPathHash = DefPathHash;
 
     fn mk_predicate(self, binder: Binder<'tcx, PredicateKind<'tcx>>) -> Predicate<'tcx> {
         self.tcx.mk_predicate(binder)
@@ -132,6 +150,44 @@ impl<'tcx, D: Decoder + TyDecoder<'tcx>> Interner<D> for TyInterner<'tcx> {
         iter: I,
     ) -> I::Output {
         self.tcx.mk_substs(iter)
+    }
+
+    fn intern_const_alloc(self, alloc: Self::Allocation) -> Self::InternedAllocation {
+        self.tcx.interners.allocation.intern(alloc, |alloc| Interned(self.tcx.arena.alloc(alloc))).0
+    }
+
+    fn reserve_alloc_id(self) -> Self::AllocationId {
+        self.tcx.reserve_alloc_id()
+    }
+
+    fn set_alloc_id_same_memory(self, id: Self::AllocationId, mem: Self::InternedAllocation) {
+        self.tcx.set_alloc_id_same_memory(id, mem)
+    }
+
+    fn create_fn_alloc(self, instance: Self::Instance) -> Self::AllocationId {
+        self.tcx.create_fn_alloc(instance)
+    }
+
+    fn create_static_alloc(self, static_id: Self::DefId) -> Self::AllocationId {
+        self.tcx.create_static_alloc(static_id)
+    }
+    fn intern_canonical_var_infos(
+        self,
+        ts: &[Self::CanonicalVarInfo],
+    ) -> Self::ListCanonicalVarInfo {
+        self.tcx.intern_canonical_var_infos(ts)
+    }
+
+    fn mk_region(self, kind: Self::RegionKind) -> Self::Region {
+        self.tcx.mk_region(kind)
+    }
+
+    fn mk_const(self, c: Self::Const) -> Self::InternedConst {
+        self.tcx.mk_const(c)
+    }
+
+    fn def_path_hash_to_def_id(self, hash: Self::DefPathHash) -> Option<Self::DefId> {
+        self.tcx.on_disk_cache.as_ref().unwrap().def_path_hash_to_def_id(self.tcx, hash)
     }
 }
 
