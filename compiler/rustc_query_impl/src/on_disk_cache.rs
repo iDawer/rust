@@ -692,10 +692,10 @@ where
 impl<'a, 'tcx> TyDecoder<'tcx> for CacheDecoder<'a, 'tcx> {
     const CLEAR_CROSS_CRATE: bool = false;
 
-    #[inline]
-    fn tcx(&self) -> TyCtxt<'tcx> {
-        self.tcx
-    }
+    // #[inline]
+    // fn tcx(&self) -> TyCtxt<'tcx> {
+    //     self.tcx
+    // }
 
     #[inline]
     fn interner(&self) -> TyInterner<'tcx> {
@@ -720,17 +720,17 @@ impl<'a, 'tcx> TyDecoder<'tcx> for CacheDecoder<'a, 'tcx> {
     where
         F: FnOnce(&mut Self) -> Result<Ty<'tcx>, Self::Error>,
     {
-        let tcx = self.tcx();
+        let mut interner = self.interner();
 
         let cache_key = ty::CReaderCacheKey { cnum: None, pos: shorthand };
 
-        if let Some(&ty) = tcx.ty_rcache.borrow().get(&cache_key) {
+        if let Some(ty) = interner.get_cached_ty(cache_key) {
             return Ok(ty);
         }
 
         let ty = or_insert_with(self)?;
         // This may overwrite the entry, but it should overwrite with the same value.
-        tcx.ty_rcache.borrow_mut().insert_same(cache_key, ty);
+        interner.insert_same_cached_ty(cache_key, ty);
         Ok(ty)
     }
 
