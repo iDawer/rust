@@ -221,6 +221,17 @@ impl<'tcx> Interner for TyInterner<'tcx> {
         self.tcx.arena.alloc_from_iter(iter)
     }
 
+    fn alloc_span(self, value: Self::Span) -> Self::AllocatedSpan {
+        self.tcx.arena.alloc::<_, Self::Span>(value)
+    }
+
+    fn alloc_span_from_iter(
+        self,
+        iter: impl IntoIterator<Item = Self::Span>,
+    ) -> Self::AllocatedSpanSlice {
+        self.tcx.arena.alloc_from_iter::<Self::Span, Self::Span, _>(iter)
+    }
+
     fn alloc_promoted(self, value: Self::Promoted) -> Self::AllocatedPromoted {
         self.tcx.arena.alloc(value)
     }
