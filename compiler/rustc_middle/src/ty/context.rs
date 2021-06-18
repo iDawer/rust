@@ -38,7 +38,7 @@ use rustc_data_structures::profiling::SelfProfilerRef;
 use rustc_data_structures::sharded::{IntoPointer, ShardedHashMap};
 use rustc_data_structures::stable_hasher::{HashStable, StableHasher};
 use rustc_data_structures::steal::Steal;
-use rustc_data_structures::sync::{self, HashMapExt, Lock, Lrc, WorkerLocal};
+use rustc_data_structures::sync::{self, Lock, Lrc, WorkerLocal};
 use rustc_errors::ErrorReported;
 use rustc_hir as hir;
 use rustc_hir::def::{DefKind, Res};
@@ -233,17 +233,6 @@ impl<'tcx> Interner for TyInterner<'tcx> {
         self.tcx.arena.alloc_from_iter(iter)
     }
 
-    fn alloc_span(self, value: Self::Span) -> Self::AllocatedSpan {
-        self.tcx.arena.alloc::<_, Self::Span>(value)
-    }
-
-    fn alloc_span_from_iter(
-        self,
-        iter: impl IntoIterator<Item = Self::Span>,
-    ) -> Self::AllocatedSpanSlice {
-        self.tcx.arena.alloc_from_iter::<_, Self::Span, _>(iter)
-    }
-
     fn alloc_promoted(self, value: Self::Promoted) -> Self::AllocatedPromoted {
         self.tcx.arena.alloc(value)
     }
@@ -348,17 +337,6 @@ impl<'tcx> Interner for TyInterner<'tcx> {
         SymbolName::new(self.tcx, name)
     }
 
-    fn get_cached_ty(&self, k: Self::TypeKey) -> Option<Self::Ty> {
-        self.tcx.ty_rcache.borrow().get(&k).map(|x| x.to_owned())
-    }
-    fn insert_same_cached_ty(&mut self, key: Self::TypeKey, value: Self::Ty) {
-        self.tcx.ty_rcache.borrow_mut().insert_same(key, value);
-    }
-
-    fn insert_cached_ty(&mut self, key: Self::TypeKey, value: Self::Ty) -> Option<Self::Ty> {
-        self.tcx.ty_rcache.borrow_mut().insert(key, value)
-    }
-
     fn adt_def(self, def_id: Self::DefId) -> Self::AdtDef {
         self.tcx.adt_def(def_id)
     }
@@ -424,26 +402,6 @@ impl<'tcx> Interner for TyInterner<'tcx> {
         ts: &[Self::CanonicalVarInfo],
     ) -> Self::ListCanonicalVarInfo {
         self.tcx.intern_canonical_var_infos(ts)
-    }
-
-    fn reserve_alloc_id(self) -> Self::AllocationId {
-        self.tcx.reserve_alloc_id()
-    }
-
-    fn set_alloc_id_same_memory(self, id: Self::AllocationId, mem: Self::InternedAllocation) {
-        self.tcx.set_alloc_id_same_memory(id, mem)
-    }
-
-    fn create_fn_alloc(self, instance: Self::Instance) -> Self::AllocationId {
-        self.tcx.create_fn_alloc(instance)
-    }
-
-    fn create_static_alloc(self, static_id: Self::DefId) -> Self::AllocationId {
-        self.tcx.create_static_alloc(static_id)
-    }
-
-    fn def_path_hash_to_def_id(self, hash: Self::DefPathHash) -> Option<Self::DefId> {
-        self.tcx.on_disk_cache.as_ref().unwrap().def_path_hash_to_def_id(self.tcx, hash)
     }
 }
 

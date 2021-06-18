@@ -9,7 +9,7 @@ use rustc_middle::dep_graph::{DepNode, DepNodeIndex, SerializedDepNodeIndex};
 use rustc_middle::mir::interpret::{AllocDecodingSession, AllocDecodingState};
 use rustc_middle::mir::{self, interpret};
 use rustc_middle::ty::codec::{RefDecodable, TyDecoder, TyEncoder};
-use rustc_middle::ty::{self, Ty, TyCtxt, TyInterner};
+use rustc_middle::ty::{self, Ty, TyCtxt};
 use rustc_query_system::dep_graph::DepContext;
 use rustc_query_system::query::{QueryContext, QuerySideEffects};
 use rustc_serialize::{
@@ -23,7 +23,6 @@ use rustc_span::hygiene::{
 use rustc_span::source_map::{SourceMap, StableSourceFileId};
 use rustc_span::CachingSourceMapView;
 use rustc_span::{BytePos, ExpnData, ExpnHash, SourceFile, Span, DUMMY_SP};
-use rustc_type_ir::Interner;
 use std::collections::hash_map::Entry;
 use std::mem;
 
@@ -693,8 +692,8 @@ impl<'a, 'tcx> TyDecoder<'tcx> for CacheDecoder<'a, 'tcx> {
     const CLEAR_CROSS_CRATE: bool = false;
 
     #[inline]
-    fn interner(&self) -> TyInterner<'tcx> {
-        self.tcx.interner()
+    fn tcx(&self) -> TyCtxt<'tcx> {
+        self.tcx
     }
 
     #[inline]
@@ -715,17 +714,17 @@ impl<'a, 'tcx> TyDecoder<'tcx> for CacheDecoder<'a, 'tcx> {
     where
         F: FnOnce(&mut Self) -> Result<Ty<'tcx>, Self::Error>,
     {
-        let mut interner = self.interner();
+        let tcx = self.tcx();
 
         let cache_key = ty::CReaderCacheKey { cnum: None, pos: shorthand };
 
-        if let Some(ty) = interner.get_cached_ty(cache_key) {
+        if let Some(&ty) = tcx.ty_rcache.borrow().get(&cache_key) {
             return Ok(ty);
         }
 
         let ty = or_insert_with(self)?;
         // This may overwrite the entry, but it should overwrite with the same value.
-        interner.insert_same_cached_ty(cache_key, ty);
+        tcx.ty_rcache.borrow_mut().insert_same(cache_key, ty);
         Ok(ty)
     }
 
@@ -872,9 +871,12 @@ impl<'a, 'tcx> Decodable<CacheDecoder<'a, 'tcx>> for DefId {
         // If we get to this point, then all of the query inputs were green,
         // which means that the definition with this hash is guaranteed to
         // still exist in the current compilation session.
-
-        let def_if = d.interner().def_path_hash_to_def_id(def_path_hash);
-        Ok(def_if.unwrap())
+        Ok(d.tcx()
+            .on_disk_cache
+            .as_ref()
+            .unwrap()
+            .def_path_hash_to_def_id(d.tcx(), def_path_hash)
+            .unwrap())
     }
 }
 
