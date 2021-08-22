@@ -26,7 +26,7 @@ pub struct Const<'tcx> {
 }
 
 impl<S: rustc_type_ir::TyEncoder<I = TyInterner<'tcx>>> rustc_serialize::Encodable<S>
-    for &'_ Const<'_>
+    for &'tcx Const<'tcx>
 {
     fn encode(&self, s: &mut S) -> Result<(), S::Error> {
         (*self).encode(s)

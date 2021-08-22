@@ -293,13 +293,13 @@ impl<'tcx, D: TyDecoder<I = TyInterner<'tcx>>> RefDecodable<'tcx, D> for ty::Adt
     }
 }
 
-impl<'tcx, D: TyDecoder<I = TyInterner<'tcx>>> Decodable<D> for &ty::AdtDef {
+impl<'tcx, D: TyDecoder<I = TyInterner<'tcx>>> Decodable<D> for &'tcx ty::AdtDef {
     fn decode(decoder: &mut D) -> Result<Self, D::Error> {
         RefDecodable::decode(decoder)
     }
 }
 
-impl<'tcx, D: TyDecoder<I = TyInterner<'tcx>>> Decodable<D> for &ty::Const<'_> {
+impl<'tcx, D: TyDecoder<I = TyInterner<'tcx>>> Decodable<D> for &'tcx ty::Const<'tcx> {
     fn decode(decoder: &mut D) -> Result<Self, D::Error> {
         RefDecodable::decode(decoder)
     }

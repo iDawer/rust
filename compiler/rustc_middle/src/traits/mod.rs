@@ -105,6 +105,8 @@ impl Deref for ObligationCause<'tcx> {
 
     #[inline(always)]
     fn deref(&self) -> &Self::Target {
+        // self.data: Option<Rc<ObligationCauseData<'tcx>>>,
+        // self.data.as_deref(): Option<&ObligationCauseData<'tcx>>
         self.data.as_deref().unwrap_or(&DUMMY_OBLIGATION_CAUSE_DATA)
     }
 }

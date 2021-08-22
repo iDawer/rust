@@ -2764,8 +2764,8 @@ impl<'tcx> Display for ConstantKind<'tcx> {
     }
 }
 
-fn pretty_print_const(
-    c: &ty::Const<'tcx>,
+fn pretty_print_const<'a>(
+    c: &'a ty::Const<'a>,
     fmt: &mut Formatter<'_>,
     print_types: bool,
 ) -> fmt::Result {
