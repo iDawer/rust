@@ -11,6 +11,7 @@ use self::usefulness::UsefulnessCtxt;
 use crate::thir::util::UserAnnotatedTyHelpers;
 
 use rustc_apfloat::ieee::{DoubleS, IeeeFloat, SingleS};
+use rustc_arena::TypedArena;
 use rustc_data_structures::captures::Captures;
 use rustc_errors::struct_span_err;
 use rustc_hir as hir;
@@ -1242,6 +1243,25 @@ impl<'tcx> usefulness::Context for MatchCheckCtxt<'tcx> {
     fn span_bug(span: Self::Span, f: impl Fn() -> String) -> ! {
         let error = f();
         span_bug!(span, "{}", error)
+    }
+}
+
+impl<'p, 'tcx> usefulness::Alloc<'p, &'p Self> for MatchCheckCtxt<'tcx> {
+    type Cx = Self;
+    type PatternArena = TypedArena<DeconstructedPat<'p, Self>>;
+
+    fn alloc_pat(
+        arena: &'p Self::PatternArena,
+        pat: DeconstructedPat<'p, Self>,
+    ) -> &'p DeconstructedPat<'p, Self> {
+        arena.alloc(pat)
+    }
+
+    fn alloc_pats_from_iter(
+        arena: &'p Self::PatternArena,
+        pats: impl IntoIterator<Item = DeconstructedPat<'p, Self>>,
+    ) -> &'p [DeconstructedPat<'p, Self>] {
+        arena.alloc_from_iter(pats)
     }
 }
 

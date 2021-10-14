@@ -46,8 +46,7 @@ use self::Constructor::*;
 use self::SliceKind::*;
 
 use super::usefulness::{Context, PatCtxt, UsefulnessCtxt};
-
-use rustc_data_structures::captures::Captures;
+use super::Captures;
 
 use smallvec::{smallvec, SmallVec};
 use std::cell::Cell;
@@ -908,7 +907,7 @@ impl<'p, Cx: Context> Fields<'p, Cx> {
     }
 
     pub(super) fn singleton(ucx: &UsefulnessCtxt<'p, Cx>, field: DeconstructedPat<'p, Cx>) -> Self {
-        let field: &_ = ucx.pattern_arena.alloc(field);
+        let field = Cx::alloc_pat(ucx.pattern_arena, field);
         Fields { fields: std::slice::from_ref(field) }
     }
 
@@ -916,7 +915,7 @@ impl<'p, Cx: Context> Fields<'p, Cx> {
         ucx: &UsefulnessCtxt<'p, Cx>,
         fields: impl IntoIterator<Item = DeconstructedPat<'p, Cx>>,
     ) -> Self {
-        let fields: &[_] = ucx.pattern_arena.alloc_from_iter(fields);
+        let fields = Cx::alloc_pats_from_iter(ucx.pattern_arena, fields);
         Fields { fields }
     }
 
@@ -1056,8 +1055,8 @@ impl<'p, Cx: Context> DeconstructedPat<'p, Cx> {
                     VarLen(prefix, suffix) => {
                         let prefix = &self.fields.fields[..prefix];
                         let suffix = &self.fields.fields[self_slice.arity() - suffix..];
-                        let wildcard: &_ =
-                            ucx.pattern_arena.alloc(DeconstructedPat::wildcard(*inner_ty));
+                        let wildcard =
+                            Cx::alloc_pat(ucx.pattern_arena, DeconstructedPat::wildcard(*inner_ty));
                         let extra_wildcards = other_slice.arity() - self_slice.arity();
                         let extra_wildcards = (0..extra_wildcards).map(|_| wildcard);
                         prefix.iter().chain(extra_wildcards).chain(suffix).collect()

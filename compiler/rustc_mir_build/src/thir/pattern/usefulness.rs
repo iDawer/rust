@@ -284,9 +284,7 @@ use self::ArmType::*;
 use self::Usefulness::*;
 
 use super::deconstruct_pat::{Constructor, DeconstructedPat, Fields, SplitWildcard};
-
-use rustc_arena::TypedArena;
-use rustc_data_structures::captures::Captures;
+use super::Captures;
 
 use smallvec::{smallvec, SmallVec};
 use std::fmt::Display;
@@ -297,7 +295,11 @@ use std::iter::once;
 /// like.
 /// The `Copy` and `Debug` bounds are not actually used, but are needed because derived impls add
 /// extra useless bounds on `Cx`.
-pub(crate) trait Context: Debug + Copy {
+///
+/// In `for<'p> Alloc<'p, &'p Self, Cx = Self>`, `&'p Self` is special here: it implies `Self: 'p`.
+/// This is crucial for implementors that contain references, say `'tcx`, to be able to implement
+/// `Alloc` without an explicit bounds to the HRTB lifetime (`'tcx: 'p`).
+pub(crate) trait Context: Debug + Copy + for<'p> Alloc<'p, &'p Self, Cx = Self> {
     type Ty: Debug + Copy;
     type TyList: Debug + Clone;
     type TyListIter: Iterator<Item = Self::Ty>;
@@ -355,9 +357,24 @@ pub(crate) trait Context: Debug + Copy {
     fn span_bug(span: Self::Span, f: impl Fn() -> String) -> !;
 }
 
+pub(crate) trait Alloc<'p, L> {
+    type Cx: Context;
+    type PatternArena;
+
+    fn alloc_pat(
+        arena: &'p Self::PatternArena,
+        pat: DeconstructedPat<'p, Self::Cx>,
+    ) -> &'p DeconstructedPat<'p, Self::Cx>;
+
+    fn alloc_pats_from_iter(
+        arena: &'p Self::PatternArena,
+        pats: impl IntoIterator<Item = DeconstructedPat<'p, Self::Cx>>,
+    ) -> &'p [DeconstructedPat<'p, Self::Cx>];
+}
+
 crate struct UsefulnessCtxt<'p, Cx: Context> {
     crate cx: Cx,
-    crate pattern_arena: &'p TypedArena<DeconstructedPat<'p, Cx>>,
+    crate pattern_arena: &'p <Cx as Alloc<'p, &'p Cx>>::PatternArena,
 }
 
 #[derive(Copy, Clone)]
@@ -984,7 +1001,7 @@ crate fn compute_match_usefulness<'p, Cx: Context>(
         report.arm_usefulness.push((*arm, reachability));
     }
 
-    let wild_pattern = ucx.pattern_arena.alloc(DeconstructedPat::wildcard(scrut_ty));
+    let wild_pattern = Cx::alloc_pat(ucx.pattern_arena, DeconstructedPat::wildcard(scrut_ty));
     let v = PatStack::from_pattern(wild_pattern);
     let usefulness =
         is_useful(ucx, &matrix, &v, &mut report, FakeExtraWildcard, scrut_hir_id, false, true);
