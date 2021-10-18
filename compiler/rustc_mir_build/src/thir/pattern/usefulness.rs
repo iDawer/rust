@@ -378,9 +378,9 @@ pub(crate) trait Alloc<'p, L> {
     ) -> &'p [DeconstructedPat<'p, Self::Cx>];
 }
 
-crate struct UsefulnessCtxt<'p, Cx: Context> {
-    crate cx: Cx,
-    crate pattern_arena: &'p <Cx as Alloc<'p, &'p Cx>>::PatternArena,
+pub(crate) struct UsefulnessCtxt<'p, Cx: Context> {
+    pub(crate) cx: Cx,
+    pub(crate) pattern_arena: &'p <Cx as Alloc<'p, &'p Cx>>::PatternArena,
 }
 
 #[derive(Copy, Clone)]
@@ -735,7 +735,7 @@ enum ArmType {
 ///
 /// The final `Pair(Some(_), true)` is then the resulting witness.
 #[derive(Debug)]
-crate struct Witness<'p, Cx: Context>(Vec<DeconstructedPat<'p, Cx>>);
+pub(crate) struct Witness<'p, Cx: Context>(Vec<DeconstructedPat<'p, Cx>>);
 
 impl<'p, Cx: Context> Witness<'p, Cx> {
     /// Asserts that the witness contains a single pattern, and returns it.
@@ -934,34 +934,35 @@ fn is_useful<'p, Cx: Context>(
 
 /// The arm of a match expression.
 #[derive(Clone, Copy)]
-crate struct MatchArm<'p, Cx: Context> {
+pub(crate) struct MatchArm<'p, Cx: Context> {
     /// The pattern must have been lowered through `check_match::MatchVisitor::lower_pattern`.
-    crate pat: &'p DeconstructedPat<'p, Cx>,
-    crate hir_id: Cx::HirId,
-    crate has_guard: bool,
+    pub(crate) pat: &'p DeconstructedPat<'p, Cx>,
+    pub(crate) hir_id: Cx::HirId,
+    pub(crate) has_guard: bool,
 }
 
 /// Indicates whether or not a given arm is reachable.
 #[derive(Clone, Debug)]
-crate enum Reachability {
+pub(crate) enum Reachability {
     Reachable,
     Unreachable,
 }
 
 /// The output of checking a match for exhaustiveness and arm reachability.
-crate struct UsefulnessReport<'p, Cx: Context> {
+pub(crate) struct UsefulnessReport<'p, Cx: Context> {
     /// For each arm of the input, whether that arm is reachable after the arms above it.
-    crate arm_usefulness: Vec<(MatchArm<'p, Cx>, Reachability)>,
+    pub(crate) arm_usefulness: Vec<(MatchArm<'p, Cx>, Reachability)>,
     /// If the match is exhaustive, this is empty. If not, this contains witnesses for the lack of
     /// exhaustiveness.
-    crate non_exhaustiveness_witnesses: Vec<DeconstructedPat<'p, Cx>>,
+    pub(crate) non_exhaustiveness_witnesses: Vec<DeconstructedPat<'p, Cx>>,
     /// Reports any unreachable sub-or-patterns.
-    crate unreachable_subpatterns: Vec<(Cx::Span, Cx::HirId)>,
+    pub(crate) unreachable_subpatterns: Vec<(Cx::Span, Cx::HirId)>,
     /// Report when some variants of a `non_exhaustive` enum failed to be listed explicitly.
-    crate non_exhaustive_omitted_patterns:
+    pub(crate) non_exhaustive_omitted_patterns:
         Vec<(Cx::Ty, Cx::Span, Cx::HirId, Vec<DeconstructedPat<'p, Cx>>)>,
     /// Report likely incorrect range patterns (#63987)
-    crate overlapping_range_endpoints: Vec<(Cx::Span, Cx::HirId, Vec<DeconstructedPat<'p, Cx>>)>,
+    pub(crate) overlapping_range_endpoints:
+        Vec<(Cx::Span, Cx::HirId, Vec<DeconstructedPat<'p, Cx>>)>,
 }
 
 // Can't derive because it adds a bound on `Cx`.
@@ -982,7 +983,7 @@ impl<'p, Cx: Context> Default for UsefulnessReport<'p, Cx> {
 ///
 /// Note: the input patterns must have been lowered through
 /// `check_match::MatchVisitor::lower_pattern`.
-crate fn compute_match_usefulness<'p, Cx: Context>(
+pub(crate) fn compute_match_usefulness<'p, Cx: Context>(
     ucx: &UsefulnessCtxt<'p, Cx>,
     arms: &[MatchArm<'p, Cx>],
     scrut_hir_id: Cx::HirId,
