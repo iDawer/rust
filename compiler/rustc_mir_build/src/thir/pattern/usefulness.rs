@@ -291,6 +291,12 @@ use std::fmt::Display;
 use std::fmt::{self, Debug};
 use std::iter::once;
 
+macro_rules! bug {
+    () => {
+        Cx::span_bug(None, format_args!("impossible case reached"))
+    };
+}
+
 /// Context for running the algorithm. This decouples the algorithm from specifics of types and the
 /// like.
 /// The `Copy` and `Debug` bounds are not actually used, but are needed because derived impls add
@@ -354,7 +360,7 @@ pub(crate) trait Context: Debug + Copy + for<'p> Alloc<'p, &'p Self, Cx = Self> 
         ctor: &Constructor<Self>,
     ) -> Vec<Self::Ty>;
 
-    fn span_bug(span: Self::Span, f: impl Fn() -> String) -> !;
+    fn span_bug(span: Option<Self::Span>, args: fmt::Arguments<'_>) -> !;
 }
 
 pub(crate) trait Alloc<'p, L> {

@@ -781,7 +781,7 @@ fn pat_to_deconstructed<'p, 'tcx>(
                         Some(bits) => match pat.ty.kind() {
                             ty::Bool => Constructor::Bool(bits != 0),
                             ty::Char | ty::Int(_) | ty::Uint(_) => {
-                                Constructor::IntRange(IntRange::from_bits(
+                                Constructor::IntRange(int_range(
                                     size.bits(),
                                     MatchCheckCtxt::is_signed_int(pat.ty),
                                     bits,
@@ -849,7 +849,7 @@ fn pat_to_deconstructed<'p, 'tcx>(
             let hi = fast_try_eval_bits(cx.tcx, cx.param_env, size, hi)
                 .unwrap_or_else(|| bug!("expected bits of {:?}, got {:?}", ty, hi));
             ctor = match ty.kind() {
-                ty::Char | ty::Int(_) | ty::Uint(_) => Constructor::IntRange(IntRange::from_bits(
+                ty::Char | ty::Int(_) | ty::Uint(_) => Constructor::IntRange(int_range(
                     size.bits(),
                     MatchCheckCtxt::is_signed_int(ty),
                     lo,
@@ -1074,7 +1074,7 @@ impl<'tcx> usefulness::Context for MatchCheckCtxt<'tcx> {
 
         debug!("list_constructors_for_type({:?})", ty);
         let make_range = |size: Size, start, end| {
-            IntRange(self::IntRange::from_bits(
+            IntRange(int_range(
                 size.bits(),
                 Self::is_signed_int(ty),
                 start,
@@ -1240,9 +1240,11 @@ impl<'tcx> usefulness::Context for MatchCheckCtxt<'tcx> {
         self.list_variant_nonhidden_fields(ty, ctor).map(|(_, ty)| ty).collect()
     }
 
-    fn span_bug(span: Self::Span, f: impl Fn() -> String) -> ! {
-        let error = f();
-        span_bug!(span, "{}", error)
+    fn span_bug(span: Option<Self::Span>, args: fmt::Arguments<'_>) -> ! {
+        match span {
+            Some(span) => rustc_middle::util::bug::span_bug_fmt(span, args),
+            None => rustc_middle::util::bug::bug_fmt(args),
+        }
     }
 }
 
@@ -1313,5 +1315,19 @@ impl<'tcx> MatchCheckCtxt<'tcx> {
                 Some((Field::new(i), ty))
             }
         })
+    }
+}
+
+fn int_range(
+    ty_size: u64,
+    is_signed_int: bool,
+    lo: u128,
+    hi: u128,
+    end: &deconstruct_pat::RangeEnd,
+) -> IntRange {
+    match IntRange::from_bits(ty_size, is_signed_int, lo, hi, end) {
+        Ok(range) => range,
+        // This should have been caught earlier by E0030.
+        Err(malformed_range_error) => bug!("{}", malformed_range_error),
     }
 }

@@ -55,9 +55,15 @@ use std::fmt;
 use std::iter::{once, IntoIterator};
 use std::ops::RangeInclusive;
 
+macro_rules! bug {
+    ($($rest:tt)*) => {
+        Cx::span_bug(None, format_args!($($rest)*))
+    };
+}
+
 macro_rules! span_bug {
     ($span:expr, $($rest:tt)*) => {
-        Cx::span_bug($span, || format!($($rest)*))
+        Cx::span_bug(Some($span), format_args!($($rest)*))
     };
 }
 
@@ -112,17 +118,17 @@ impl IntRange {
         lo: u128,
         hi: u128,
         end: &RangeEnd,
-    ) -> IntRange {
+    ) -> Result<IntRange, MalformedRangeError> {
         let bias = if is_signed_int { 1u128 << (ty_size as u128 - 1) } else { 0 };
         // Perform a shift if the underlying types are signed,
         // which makes the interval arithmetic simpler.
         let (lo, hi) = (lo ^ bias, hi ^ bias);
         let offset = (*end == RangeEnd::Excluded) as u128;
+        let int_range = IntRange { range: lo..=(hi - offset), bias };
         if lo > hi || (lo == hi && *end == RangeEnd::Excluded) {
-            // This should have been caught earlier by E0030.
-            bug!("malformed range pattern: {}..={}", lo, (hi - offset));
+            return Err(MalformedRangeError(int_range));
         }
-        IntRange { range: lo..=(hi - offset), bias }
+        Ok(int_range)
     }
 
     /// The reverse of `Self::from_bits`.
@@ -240,6 +246,14 @@ impl fmt::Debug for IntRange {
         write!(f, "{}", lo)?;
         write!(f, "{}", RangeEnd::Included)?;
         write!(f, "{}", hi)
+    }
+}
+
+pub(super) struct MalformedRangeError(IntRange);
+
+impl fmt::Display for MalformedRangeError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "malformed range pattern: {:?}", self.0)
     }
 }
 
