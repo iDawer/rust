@@ -93,7 +93,11 @@ impl<'a, 'tcx> PatCtxt<'a, 'tcx> {
         // adjustments in *reverse order* (last-in-first-out, so that the last `Deref` inserted
         // gets the least-dereferenced type).
         let unadjusted_pat = self.lower_pattern_unadjusted(pat);
-        self.typeck_results.pat_adjustments().get(pat.hir_id).unwrap_or(&vec![]).iter().rev().fold(
+        debug!(?unadjusted_pat);
+        let adj_table = self.typeck_results.pat_adjustments();
+        let pat_adjustments = adj_table.get(pat.hir_id);
+        debug!(?pat_adjustments);
+        pat_adjustments.unwrap_or(&vec![]).iter().rev().fold(
             unadjusted_pat,
             |pat, ref_ty| {
                 debug!("{:?}: wrapping pattern with type {:?}", pat, ref_ty);
