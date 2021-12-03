@@ -1,0 +1,62 @@
+name: build
+on:
+  push:
+    branches:
+      - build
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 5
+
+      - name: Find commits
+        run: |
+          echo Excluding the last commit that adds this workflow file
+          echo "SHA=$(git rev-list -n1 HEAD^)" >> $GITHUB_ENV
+
+      - run: |
+          git checkout ${{ env.SHA }}
+          git log -n1
+
+      - run: |
+          cat >config.toml <<CFG_END
+          [rust]
+          debug-logging = true
+          incremental = true
+          [llvm]
+          download-ci-llvm = true
+          [build]
+          docs = false
+          [dist]
+          compression-formats = ["xz"]
+          CFG_END
+          cat config.toml
+
+      - uses: Swatinem/rust-cache@v1
+
+      - uses: actions/cache@v2
+        with:
+          path: |
+            build/bootstrap/
+            build/x86_64-unknown-linux-gnu/stage*
+          key: ${{ runner.os }}-build-${{ hashFiles('Cargo.lock', 'config.toml') }}-${{ github.sha }}
+          restore-keys: ${{ runner.os }}-build-${{ hashFiles('Cargo.lock', 'config.toml') }}
+
+      - run: ./x.py dist --stage=1 library/std src/librustc
+        continue-on-error: true
+
+      - run: |
+          ls -hl build/x86_64-unknown-linux-gnu/
+          ls -hl build/dist/
+        continue-on-error: true
+
+      - uses: actions/upload-artifact@v2
+        with:
+          name: dist-stage1-${{ env.SHA }}
+          path: build/dist/*
+
