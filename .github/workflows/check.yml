@@ -1,0 +1,42 @@
+name: check
+on:
+  push:
+    branches:
+      - check
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 20 # include commits by bors
+
+      - name: Find topic commit
+        id: commit
+        run: |
+          echo Excluding the last commit that adds this workflow file
+          echo "::set-output name=topic::$(git rev-list --abbrev-commit -n1 HEAD^)"
+
+      - run: |
+          git checkout ${{ steps.commit.outputs.topic }}
+          git log -n1
+
+      - run: |
+          cat >config.toml <<CFG_END
+          [rust]
+          debug-logging = true
+          incremental = true
+          [llvm]
+          download-ci-llvm = true
+          [build]
+          docs = false
+          [dist]
+          compression-formats = ["xz"]
+          CFG_END
+          cat config.toml
+
+      - uses: Swatinem/rust-cache@v1
+
+      - run: ./x.py check compiler/rustc
